@@ -39,18 +39,19 @@ def compute_epe_error(pred_flow: torch.Tensor, gt_flow: torch.Tensor):
     return epe
 
 # 修正
-# def calculate_loss(flow_dict: dict, target: torch.Tensor) -> torch.Tensor:
-#     total_loss = 0.0
+def calculate_loss(flow_dict: dict, target: torch.Tensor) -> torch.Tensor:
+    total_loss = 0.0
+    weight=[0.3, 0.1, 0.02, 0.01]
 
-#     for key in flow_dict:
-#         flow_output = flow_dict[key]
-#         upsampled_output = F.interpolate(flow_output, size=target.size()[2:], mode='bilinear', align_corners=False)
-#         loss = compute_epe_error(upsampled_output, target)
-#         total_loss += loss
+    for i,key in enumerate(flow_dict):
+        flow_output = flow_dict[key]
+        upsampled_output = F.interpolate(flow_output, size=target.size()[2:], mode='bilinear', align_corners=False)
+        loss = compute_epe_error(upsampled_output, target)
+        total_loss += loss*weight[i]
 
-#     total_loss /= len(flow_dict)
+    total_loss /= len(flow_dict)
     
-#     return total_loss
+    return total_loss
 
 
 def save_optical_flow_to_npy(flow: torch.Tensor, file_name: str):
@@ -141,7 +142,7 @@ def main(args: DictConfig):
             event_image = batch["event_volume"].to(device) # [B, 4, 480, 640]
             ground_truth_flow = batch["flow_gt"].to(device) # [B, 2, 480, 640]
             flow,flow_dict = model(event_image) # [B, 2, 480, 640]
-            loss: torch.Tensor = compute_epe_error(flow, ground_truth_flow)
+            loss: torch.Tensor = calculate_loss(flow_dict, ground_truth_flow)
             print(f"batch {i} loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
@@ -176,7 +177,6 @@ def main(args: DictConfig):
     # ------------------
     #   Start predicting
     # ------------------
-    model_path='/content/dl_lecture_competition_pub/checkpoints/model_20240717034219.pth'
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     flow: torch.Tensor = torch.tensor([]).to(device)
