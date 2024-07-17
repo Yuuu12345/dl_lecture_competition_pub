@@ -39,18 +39,18 @@ def compute_epe_error(pred_flow: torch.Tensor, gt_flow: torch.Tensor):
     return epe
 
 # 修正
-def calculate_loss(flow_dict: dict, target: torch.Tensor) -> torch.Tensor:
-    total_loss = 0.0
+# def calculate_loss(flow_dict: dict, target: torch.Tensor) -> torch.Tensor:
+#     total_loss = 0.0
 
-    for key in flow_dict:
-        flow_output = flow_dict[key]
-        upsampled_output = F.interpolate(flow_output, size=target.size()[2:], mode='bilinear', align_corners=False)
-        loss = compute_epe_error(upsampled_output, target)
-        total_loss += loss
+#     for key in flow_dict:
+#         flow_output = flow_dict[key]
+#         upsampled_output = F.interpolate(flow_output, size=target.size()[2:], mode='bilinear', align_corners=False)
+#         loss = compute_epe_error(upsampled_output, target)
+#         total_loss += loss
 
-    total_loss /= len(flow_dict)
+#     total_loss /= len(flow_dict)
     
-    return total_loss
+#     return total_loss
 
 
 def save_optical_flow_to_npy(flow: torch.Tensor, file_name: str):
@@ -141,7 +141,7 @@ def main(args: DictConfig):
             event_image = batch["event_volume"].to(device) # [B, 4, 480, 640]
             ground_truth_flow = batch["flow_gt"].to(device) # [B, 2, 480, 640]
             flow = model(event_image) # [B, 2, 480, 640]
-            loss: torch.Tensor = calculate_loss(flow, ground_truth_flow)
+            loss: torch.Tensor = compute_epe_error(flow, ground_truth_flow)
             print(f"batch {i} loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
@@ -158,7 +158,7 @@ def main(args: DictConfig):
         #         event_image = batch["event_volume"].to(device)
         #         ground_truth_flow = batch["flow_gt"].to(device)
         #         flow = model(event_image)
-        #         loss = calculate_loss(flow, ground_truth_flow)
+        #         loss = compute_epe_error(flow, ground_truth_flow)
         #         total_val_loss += loss.item()
         
         # avg_val_loss = total_val_loss / len(val_data)

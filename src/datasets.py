@@ -323,8 +323,11 @@ class Sequence(Dataset):
 
 # 修正
     def get_data(self, index) -> Dict[str, any]:
-        ts_start: int = self.timestamps_flow[index] - self.delta_t_us2  # 2フレーム前からの開始時刻
-        ts_end: int = self.timestamps_flow[index]
+        # 2つのフレームの開始時刻と終了時刻を設定
+        ts_start1 = self.timestamps_flow[index] - self.delta_t_us
+        ts_end1 = self.timestamps_flow[index]
+        ts_start2 = ts_end1
+        ts_end2 = ts_start2 + self.delta_t_us
 
         file_index = self.indices[index]
 
@@ -333,34 +336,40 @@ class Sequence(Dataset):
             'timestamp': self.timestamps_flow[index],
             'seq_name': self.seq_name
         }
-        # Save sample for benchmark submission
-        output['save_submission'] = file_index in self.idx_to_visualize
-        output['visualize'] = self.visualize_samples
-        event_data = self.event_slicer.get_events(ts_start, ts_end)
-        p = event_data['p']
-        t = event_data['t']
-        x = event_data['x']
-        y = event_data['y']
 
-        xy_rect = self.rectify_events(x, y)
-        x_rect = xy_rect[:, 0]
-        y_rect = xy_rect[:, 1]
+        # 1つ目のフレームのイベントデータを取得
+        event_data1 = self.event_slicer.get_events(ts_start1, ts_end1)
+        p1 = event_data1['p']
+        t1 = event_data1['t']
+        x1 = event_data1['x']
+        y1 = event_data1['y']
 
-        if self.voxel_grid is None:
-            raise NotImplementedError
-        else:
-            event_representation = self.events_to_voxel_grid(p, t, x_rect, y_rect)
-            output['event_volume'] = event_representation
+        # 2つ目のフレームのイベントデータを取得
+        event_data2 = self.event_slicer.get_events(ts_start2, ts_end2)
+        p2 = event_data2['p']
+        t2 = event_data2['t']
+        x2 = event_data2['x']
+        y2 = event_data2['y']
+
+        # イベントデータをボクセルグリッドに変換
+        xy_rect1 = self.rectify_events(x1, y1)
+        x_rect1 = xy_rect1[:, 0]
+        y_rect1 = xy_rect1[:, 1]
+        event_representation1 = self.events_to_voxel_grid(p1, t1, x_rect1, y_rect1)
+
+        xy_rect2 = self.rectify_events(x2, y2)
+        x_rect2 = xy_rect2[:, 0]
+        y_rect2 = xy_rect2[:, 1]
+        event_representation2 = self.events_to_voxel_grid(p2, t2, x_rect2, y_rect2)
+
+        # 2つのフレームのイベントデータを結合して入力にする
+        output['event_volume'] = torch.cat((event_representation1, event_representation2), dim=0)
+        output['name_map'] = self.name_idx
 
         if self.load_gt:
             output['flow_gt'] = [torch.tensor(x) for x in self.load_flow(self.flow_png[index])]
             output['flow_gt'][0] = torch.moveaxis(output['flow_gt'][0], -1, 0)
             output['flow_gt'][1] = torch.unsqueeze(output['flow_gt'][1], 0)
-        # for key, value in output.items():
-        #     if isinstance(value, torch.Tensor):
-        #         print(f"{key}: {value.shape}")
-        #     else:
-        #         print(f"{key}: {type(value)}")
         return output
     
     # def get_data(self, index) -> Dict[str, any]:
