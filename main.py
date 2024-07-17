@@ -38,6 +38,7 @@ def compute_epe_error(pred_flow: torch.Tensor, gt_flow: torch.Tensor):
     epe = torch.mean(torch.mean(torch.norm(pred_flow - gt_flow, p=2, dim=1), dim=(1, 2)), dim=0)
     return epe
 
+# 修正
 def calculate_loss(flow_dict: dict, target: torch.Tensor) -> torch.Tensor:
     total_loss = 0.0
 
@@ -95,30 +96,31 @@ def main(args: DictConfig):
         num_bins=4
     )
 
-    # train_set = loader.get_train_dataset()
-    # train_data = DataLoader(train_set,
-    #                              batch_size=args.data_loader.train.batch_size,
-    #                              shuffle=args.data_loader.train.shuffle,
-    #                              collate_fn=collate_fn,
-    #                              drop_last=False)
+    train_set = loader.get_train_dataset()
+    train_data = DataLoader(train_set,
+                                 batch_size=args.data_loader.train.batch_size,
+                                 shuffle=args.data_loader.train.shuffle,
+                                 collate_fn=collate_fn,
+                                 drop_last=False)
 
-    full_dataset = loader.get_train_dataset()
-    train_size = int(0.8 * len(full_dataset))  # 80%をトレーニングに使用
-    val_size = len(full_dataset) - train_size  # 残りの20%を検証に使用
+# 修正
+    # full_dataset = loader.get_train_dataset()
+    # train_size = int(0.8 * len(full_dataset))  # 80%をトレーニングに使用
+    # val_size = len(full_dataset) - train_size  # 残りの20%を検証に使用
 
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    # train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-    train_data = DataLoader(train_dataset,
-                            batch_size=args.data_loader.train.batch_size,
-                            shuffle=args.data_loader.train.shuffle,
-                            collate_fn=collate_fn,
-                            drop_last=False)
+    # train_data = DataLoader(train_dataset,
+    #                         batch_size=args.data_loader.train.batch_size,
+    #                         shuffle=args.data_loader.train.shuffle,
+    #                         collate_fn=collate_fn,
+    #                         drop_last=False)
 
-    val_data = DataLoader(val_dataset,
-                          batch_size=args.data_loader.train.batch_size,  # 検証用のバッチサイズを指定
-                          shuffle=False,  # 検証データはシャッフルしない
-                          collate_fn=collate_fn,
-                          drop_last=False)
+    # val_data = DataLoader(val_dataset,
+    #                       batch_size=args.data_loader.train.batch_size,  # 検証用のバッチサイズを指定
+    #                       shuffle=False,  # 検証データはシャッフルしない
+    #                       collate_fn=collate_fn,
+    #                       drop_last=False)
 
     test_set = loader.get_test_dataset()
     test_data = DataLoader(test_set,
@@ -148,19 +150,19 @@ def main(args: DictConfig):
             total_loss += loss.item()
         print(f'Epoch {epoch+1}, Loss: {total_loss / len(train_data)}')
 
-
-        model.eval()
-        total_val_loss = 0
-        with torch.no_grad():
-            for batch in val_data:
-                event_image = batch["event_volume"].to(device)
-                ground_truth_flow = batch["flow_gt"].to(device)
-                flow = model(event_image)
-                loss = calculate_loss(flow, ground_truth_flow)
-                total_val_loss += loss.item()
+# 修正
+        # model.eval()
+        # total_val_loss = 0
+        # with torch.no_grad():
+        #     for batch in val_data:
+        #         event_image = batch["event_volume"].to(device)
+        #         ground_truth_flow = batch["flow_gt"].to(device)
+        #         flow = model(event_image)
+        #         loss = calculate_loss(flow, ground_truth_flow)
+        #         total_val_loss += loss.item()
         
-        avg_val_loss = total_val_loss / len(val_data)
-        print(f'Epoch {epoch+1}, Validation Loss: {avg_val_loss}')
+        # avg_val_loss = total_val_loss / len(val_data)
+        # print(f'Epoch {epoch+1}, Validation Loss: {avg_val_loss}')
 
     # Create the directory if it doesn't exist
     if not os.path.exists('checkpoints'):

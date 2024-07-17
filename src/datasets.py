@@ -264,6 +264,10 @@ class Sequence(Dataset):
         self.h5rect = h5py.File(str(ev_rect_file), 'r')
         self.rectify_ev_map = self.h5rect['rectify_map'][()]
 
+        # 修正
+        self.delta_t_us = delta_t_ms * 1000
+        self.delta_t_us2 = 2 * delta_t_ms * 1000
+
 
     def events_to_voxel_grid(self, p, t, x, y, device: str = 'cpu'):
         t = (t - t[0]).astype('float32')
@@ -315,9 +319,11 @@ class Sequence(Dataset):
         assert x.max() < self.width
         assert y.max() < self.height
         return rectify_map[y, x]
-    
+
+
+# 修正
     def get_data(self, index) -> Dict[str, any]:
-        ts_start: int = self.timestamps_flow[index] - self.delta_t_us
+        ts_start: int = self.timestamps_flow[index] - self.delta_t_us2  # 2フレーム前からの開始時刻
         ts_end: int = self.timestamps_flow[index]
 
         file_index = self.indices[index]
@@ -330,8 +336,7 @@ class Sequence(Dataset):
         # Save sample for benchmark submission
         output['save_submission'] = file_index in self.idx_to_visualize
         output['visualize'] = self.visualize_samples
-        event_data = self.event_slicer.get_events(
-            ts_start, ts_end)
+        event_data = self.event_slicer.get_events(ts_start, ts_end)
         p = event_data['p']
         t = event_data['t']
         x = event_data['x']
@@ -344,20 +349,62 @@ class Sequence(Dataset):
         if self.voxel_grid is None:
             raise NotImplementedError
         else:
-            event_representation = self.events_to_voxel_grid(
-                p, t, x_rect, y_rect)
+            event_representation = self.events_to_voxel_grid(p, t, x_rect, y_rect)
             output['event_volume'] = event_representation
-        output['name_map'] = self.name_idx
-        
-        if self.load_gt:
-            output['flow_gt'
-                ] = [torch.tensor(x) for x in self.load_flow(self.flow_png[index])]
 
-            output['flow_gt'
-                ][0] = torch.moveaxis(output['flow_gt'][0], -1, 0)
-            output['flow_gt'
-                ][1] = torch.unsqueeze(output['flow_gt'][1], 0)
+        if self.load_gt:
+            output['flow_gt'] = [torch.tensor(x) for x in self.load_flow(self.flow_png[index])]
+            output['flow_gt'][0] = torch.moveaxis(output['flow_gt'][0], -1, 0)
+            output['flow_gt'][1] = torch.unsqueeze(output['flow_gt'][1], 0)
+        # for key, value in output.items():
+        #     if isinstance(value, torch.Tensor):
+        #         print(f"{key}: {value.shape}")
+        #     else:
+        #         print(f"{key}: {type(value)}")
         return output
+    
+    # def get_data(self, index) -> Dict[str, any]:
+    #     ts_start: int = self.timestamps_flow[index] - self.delta_t_us
+    #     ts_end: int = self.timestamps_flow[index]
+
+    #     file_index = self.indices[index]
+
+    #     output = {
+    #         'file_index': file_index,
+    #         'timestamp': self.timestamps_flow[index],
+    #         'seq_name': self.seq_name
+    #     }
+    #     # Save sample for benchmark submission
+    #     output['save_submission'] = file_index in self.idx_to_visualize
+    #     output['visualize'] = self.visualize_samples
+    #     event_data = self.event_slicer.get_events(
+    #         ts_start, ts_end)
+    #     p = event_data['p']
+    #     t = event_data['t']
+    #     x = event_data['x']
+    #     y = event_data['y']
+
+    #     xy_rect = self.rectify_events(x, y)
+    #     x_rect = xy_rect[:, 0]
+    #     y_rect = xy_rect[:, 1]
+
+    #     if self.voxel_grid is None:
+    #         raise NotImplementedError
+    #     else:
+    #         event_representation = self.events_to_voxel_grid(
+    #             p, t, x_rect, y_rect)
+    #         output['event_volume'] = event_representation
+    #     output['name_map'] = self.name_idx
+        
+    #     if self.load_gt:
+    #         output['flow_gt'
+    #             ] = [torch.tensor(x) for x in self.load_flow(self.flow_png[index])]
+
+    #         output['flow_gt'
+    #             ][0] = torch.moveaxis(output['flow_gt'][0], -1, 0)
+    #         output['flow_gt'
+    #             ][1] = torch.unsqueeze(output['flow_gt'][1], 0)
+    #     return output
 
     def __getitem__(self, idx):
         sample = self.get_data(idx)

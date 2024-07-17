@@ -30,6 +30,7 @@ class EVFlowNet(nn.Module):
                         out_channels=int(_BASE_CHANNELS/2), do_batch_norm=not self._args.no_batch_norm)
 
     def forward(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        print(inputs.shape)
         # encoder
         skip_connections = {}
         inputs = self.encoder1(inputs)
